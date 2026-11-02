@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  IfcCollabCore.dll: the IFC Collab Core (C++17, ../IFCCollabCore) plus a flat C interface
+  (collab_bridge.h) for the .NET add-in. x64 only, like Revit. The static CRT (/MT) means the
+  DLL needs nothing installed beside it, and it is the same DLL for every Revit version.
+
+  The Core's location defaults to the sibling folder; override with
+  msbuild -p:CollabCoreDir=D:\src\IFCCollabCore
+-->
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <ProjectGuid>{6B0C4E7A-3F2D-4C1B-9A57-2E8D1F0B7C31}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>IfcCollabCoreBridge</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <CollabCoreDir Condition="'$(CollabCoreDir)' == ''">$(MSBuildThisFileDirectory)..\..\..\IFCCollabCore\</CollabCoreDir>
+    <CollabCoreDir Condition="!HasTrailingSlash('$(CollabCoreDir)')">$(CollabCoreDir)\</CollabCoreDir>
+    <CollabCoreSrc>$(CollabCoreDir)Source\IFCCollabCore\</CollabCoreSrc>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <!-- v145 is Visual Studio 2026's toolset; pass -p:PlatformToolset=v143 for Visual Studio 2022. -->
+    <PlatformToolset Condition="'$(PlatformToolset)' == ''">v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <UseDebugLibraries Condition="'$(Configuration)' == 'Debug'">true</UseDebugLibraries>
+    <UseDebugLibraries Condition="'$(Configuration)' == 'Release'">false</UseDebugLibraries>
+    <WholeProgramOptimization Condition="'$(Configuration)' == 'Release'">true</WholeProgramOptimization>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+
+  <PropertyGroup>
+    <TargetName>IfcCollabCore</TargetName>
+    <OutDir>$(MSBuildThisFileDirectory)..\..\build\native\$(Configuration)\</OutDir>
+    <IntDir>$(MSBuildThisFileDirectory)..\..\build\native\obj\$(Configuration)\</IntDir>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <WarningLevel>Level4</WarningLevel>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(CollabCoreSrc)Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <!-- std::filesystem::u8path is deprecated in C++20 only; this is C++17. -->
+      <PreprocessorDefinitions>COLLAB_BRIDGE_BUILD;WIN32_LEAN_AND_MEAN;NOMINMAX;_CRT_SECURE_NO_WARNINGS;_SILENCE_CXX20_U8PATH_DEPRECATION_WARNING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)' == 'Debug'">
+    <ClCompile>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <Optimization>Disabled</Optimization>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)' == 'Release'">
+    <ClCompile>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <ItemGroup>
+    <ClInclude Include="collab_bridge.h" />
+    <ClCompile Include="collab_bridge.cpp" />
+  </ItemGroup>
+  <!-- The Core's sources, compiled in. Only what the Client needs; MQTT, sensors, GLB and WAV stay out. -->
+  <ItemGroup>
+    <ClCompile Include="$(CollabCoreSrc)Private\client.cpp" />
+    <ClCompile Include="$(CollabCoreSrc)Private\codec.cpp" />
+    <ClCompile Include="$(CollabCoreSrc)Private\json.cpp" />
+    <ClCompile Include="$(CollabCoreSrc)Private\math.cpp" />
+    <ClCompile Include="$(CollabCoreSrc)Private\offline.cpp" />
+  </ItemGroup>
+
+  <Target Name="CheckCollabCore" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('$(CollabCoreSrc)Public\collab\client.h')"
+           Text="IFC Collab Core not found at '$(CollabCoreDir)'. Clone it beside this repository, or pass -p:CollabCoreDir=&quot;path\to\IFCCollabCore&quot;." />
+  </Target>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Installed beside the OpenBimViewer folder in %APPDATA%\Autodesk\Revit\Addins\<year>\ (see install.ps1). -->
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>Open BIM Viewer</Name>
+    <Assembly>OpenBimViewer\OpenBimViewer.Revit.dll</Assembly>
+    <FullClassName>OpenBimViewer.Revit.App</FullClassName>
+    <AddInId>8E3B6C2A-4F71-4D2E-9B5A-6C0D3E7F1A24</AddInId>
+    <VendorId>IFCCollab</VendorId>
+    <VendorDescription>IFC Collab: BCF issues and saved views from an IFC Collab server</VendorDescription>
+  </AddIn>
+</RevitAddIns>

@@ -1,0 +1,250 @@
+<Page x:Class="OpenBimViewer.Revit.UI.CollabPanel"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="Open BIM Viewer" Background="White" FontSize="12">
+    <Page.Resources>
+        <BooleanToVisibilityConverter x:Key="Visible" />
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="MinHeight" Value="24" />
+        </Style>
+        <Style x:Key="Link" TargetType="Button">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,0,10,0" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="#1E6FD9" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <ContentPresenter />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="Caption" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,8,0,3" />
+        </Style>
+
+        <!-- An issue, comment or saved-view image (SnapshotItem). Double-click: show in Revit. -->
+        <DataTemplate x:Key="SnapshotTemplate">
+            <StackPanel Margin="0,6,0,0" HorizontalAlignment="Left">
+                <Border BorderBrush="#D0D0D0" BorderThickness="1" Background="#F4F4F4" Cursor="Hand"
+                        ToolTip="{Binding Hint}" MouseLeftButtonDown="Snapshot_MouseDown"
+                        Visibility="{Binding HasImage, Converter={StaticResource Visible}}">
+                    <Border.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Show in Revit" Click="SnapshotShow_Click" IsEnabled="{Binding HasCamera}" />
+                            <MenuItem Header="View image" Click="SnapshotView_Click" />
+                            <Separator />
+                            <MenuItem Header="Mark up…" Click="SnapshotMarkup_Click" IsEnabled="{Binding CanReplace}" />
+                            <MenuItem Header="Replace with current view" Click="SnapshotReplaceView_Click" IsEnabled="{Binding CanReplace}" />
+                            <MenuItem Header="Replace from file…" Click="SnapshotReplaceFile_Click" IsEnabled="{Binding CanReplace}" />
+                        </ContextMenu>
+                    </Border.ContextMenu>
+                    <Grid MinWidth="160" MinHeight="90">
+                        <Image Source="{Binding Image}" MaxWidth="300" MaxHeight="170" Stretch="Uniform"
+                               RenderOptions.BitmapScalingMode="HighQuality" />
+                        <TextBlock Text="{Binding Status}" Foreground="Gray" FontSize="11" Margin="6"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"
+                                   Visibility="{Binding HasStatus, Converter={StaticResource Visible}}" />
+                    </Grid>
+                </Border>
+                <WrapPanel Margin="0,2,0,0" Visibility="{Binding HasImage, Converter={StaticResource Visible}}">
+                    <Button Style="{StaticResource Link}" Content="Show in Revit" Click="SnapshotShow_Click"
+                            Visibility="{Binding HasCamera, Converter={StaticResource Visible}}" />
+                    <Button Style="{StaticResource Link}" Content="View" Click="SnapshotView_Click" />
+                    <Button Style="{StaticResource Link}" Content="Mark up" Click="SnapshotMarkup_Click"
+                            Visibility="{Binding CanReplace, Converter={StaticResource Visible}}" />
+                    <Button Style="{StaticResource Link}" Content="Replace with current view" Click="SnapshotReplaceView_Click"
+                            Visibility="{Binding CanReplace, Converter={StaticResource Visible}}" />
+                    <Button Style="{StaticResource Link}" Content="From file…" Click="SnapshotReplaceFile_Click"
+                            Visibility="{Binding CanReplace, Converter={StaticResource Visible}}" />
+                </WrapPanel>
+            </StackPanel>
+        </DataTemplate>
+    </Page.Resources>
+
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />   <!-- sign in / session -->
+            <RowDefinition Height="Auto" />   <!-- project -->
+            <RowDefinition Height="*" />      <!-- tabs -->
+            <RowDefinition Height="Auto" />   <!-- status -->
+        </Grid.RowDefinitions>
+
+        <!-- Signed out -->
+        <StackPanel x:Name="SignInPanel" Grid.Row="0">
+            <TextBlock Style="{StaticResource Caption}" Margin="0,0,0,3" Text="IFC Collab server" />
+            <ComboBox x:Name="ServerBox" IsEditable="True" IsTextSearchEnabled="False" Padding="3,2"
+                      ToolTip="e.g. https://collab.example.com. The list shows the last servers you signed in to." />
+            <TextBlock Style="{StaticResource Caption}" Text="E-mail" />
+            <TextBox x:Name="EmailBox" Padding="3,2" />
+            <TextBlock Style="{StaticResource Caption}" Text="Password" />
+            <PasswordBox x:Name="PasswordBox" Padding="3,2" KeyDown="Password_KeyDown" />
+            <Button x:Name="SignInButton" Content="Sign in" HorizontalAlignment="Left" Margin="0,8,0,0" Click="SignIn_Click" IsDefault="True" />
+        </StackPanel>
+
+        <!-- Signed in -->
+        <StackPanel x:Name="SessionPanel" Grid.Row="0" Visibility="Collapsed">
+            <DockPanel>
+                <Button x:Name="SignOutButton" DockPanel.Dock="Right" Content="Sign out" Click="SignOut_Click" />
+                <Ellipse x:Name="OnlineDot" Width="9" Height="9" Margin="0,0,6,0" VerticalAlignment="Center" Fill="#43A047" />
+                <TextBlock x:Name="SignedInText" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            </DockPanel>
+            <DockPanel x:Name="PendingPanel" Margin="0,6,0,0" Visibility="Collapsed">
+                <Button x:Name="SyncButton" DockPanel.Dock="Right" Content="Sync now" Click="Sync_Click"
+                        ToolTip="Send the changes made while the server was unreachable" />
+                <TextBlock x:Name="PendingText" VerticalAlignment="Center" Foreground="#B26A00" TextWrapping="Wrap" />
+            </DockPanel>
+        </StackPanel>
+
+        <DockPanel x:Name="ProjectRow" Grid.Row="1" Margin="0,8,0,6" Visibility="Collapsed">
+            <Button x:Name="RefreshButton" DockPanel.Dock="Right" Margin="6,0,0,0" Content="Refresh" Click="Refresh_Click" />
+            <ComboBox x:Name="ProjectBox" DisplayMemberPath="Name" SelectionChanged="Project_SelectionChanged" />
+        </DockPanel>
+
+        <TabControl x:Name="Tabs" Grid.Row="2" Visibility="Collapsed">
+            <TabItem Header="Issues">
+                <Grid Margin="4">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="2*" MinHeight="80" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="3*" MinHeight="120" />
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                        <Button x:Name="NewIssueButton" DockPanel.Dock="Left" Content="New issue…" Click="NewIssue_Click"
+                                ToolTip="Raise an issue with a screenshot and the camera of the active 3D view" />
+                        <ComboBox x:Name="StatusFilter" DockPanel.Dock="Right" Width="90" Margin="6,0,0,0"
+                                  SelectionChanged="Filter_Changed" ToolTip="Show issues with this status" />
+                        <TextBox x:Name="SearchBox" Margin="6,0,0,0" Padding="3,2" TextChanged="Filter_Changed"
+                                 ToolTip="Filter by number, title, assignee or description" />
+                    </DockPanel>
+
+                    <ListBox x:Name="IssueList" Grid.Row="1" SelectionChanged="Issue_SelectionChanged" HorizontalContentAlignment="Stretch"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,2">
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Right" Background="{Binding StatusBrush}" CornerRadius="3" Padding="5,0" Margin="6,0,0,0">
+                                            <TextBlock Text="{Binding Status}" Foreground="White" FontSize="11" />
+                                        </Border>
+                                        <TextBlock TextTrimming="CharacterEllipsis">
+                                            <Run Foreground="Gray" Text="{Binding Number, Mode=OneWay}" />
+                                            <Run Text="{Binding Title, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </DockPanel>
+                                    <TextBlock Text="{Binding Meta}" Foreground="Gray" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <GridSplitter Grid.Row="2" Height="5" HorizontalAlignment="Stretch" Background="Transparent" />
+
+                    <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="DetailsPanel" Visibility="Collapsed" Margin="0,0,4,0">
+                            <TextBlock x:Name="IssueHeader" Foreground="Gray" TextWrapping="Wrap" />
+
+                            <TextBlock Style="{StaticResource Caption}" Text="Title" />
+                            <TextBox x:Name="TitleBox" Padding="3,2" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition />
+                                    <ColumnDefinition Width="6" />
+                                    <ColumnDefinition />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <StackPanel Grid.Column="0" Grid.Row="0">
+                                    <TextBlock Style="{StaticResource Caption}" Text="Status" />
+                                    <ComboBox x:Name="StatusBox" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Grid.Row="0">
+                                    <TextBlock Style="{StaticResource Caption}" Text="Type" />
+                                    <ComboBox x:Name="TypeBox" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="0" Grid.Row="1">
+                                    <TextBlock Style="{StaticResource Caption}" Text="Priority" />
+                                    <ComboBox x:Name="PriorityBox" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Grid.Row="1">
+                                    <TextBlock Style="{StaticResource Caption}" Text="Assigned to" />
+                                    <TextBox x:Name="AssignedBox" Padding="3,2" ToolTip="A project member's e-mail; leave empty for nobody" />
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Style="{StaticResource Caption}" Text="Description" />
+                            <TextBox x:Name="DescriptionBox" MinHeight="54" AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" Padding="3,2" />
+                            <Button x:Name="SaveIssueButton" Content="Save changes" HorizontalAlignment="Left" Margin="0,6,0,0" Click="SaveIssue_Click" />
+
+                            <TextBlock Style="{StaticResource Caption}" Text="Image" />
+                            <ContentControl x:Name="IssueImage" ContentTemplate="{StaticResource SnapshotTemplate}" />
+                            <TextBlock x:Name="NoIssueImage" Text="This issue has no image." Foreground="Gray" Visibility="Collapsed" />
+
+                            <TextBlock Style="{StaticResource Caption}" Text="Comments" />
+                            <TextBlock x:Name="NoComments" Text="No comments yet." Foreground="Gray" Visibility="Collapsed" />
+                            <ItemsControl x:Name="CommentList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="0,4">
+                                            <StackPanel>
+                                                <TextBlock Foreground="Gray" FontSize="11">
+                                                    <Run Text="{Binding Author, Mode=OneWay}" />
+                                                    <Run Text="{Binding Date, StringFormat=' · {0}', Mode=OneWay}" />
+                                                </TextBlock>
+                                                <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                                                <ContentControl Content="{Binding Snapshot}" ContentTemplate="{StaticResource SnapshotTemplate}"
+                                                                Visibility="{Binding HasSnapshot, Converter={StaticResource Visible}}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBox x:Name="CommentBox" Margin="0,8,0,0" MinHeight="44" AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" Padding="3,2" />
+                            <WrapPanel Margin="0,4,0,0">
+                                <CheckBox x:Name="AttachViewCheck" Content="Attach current view" Margin="0,0,10,4" VerticalAlignment="Center"
+                                          ToolTip="Add a screenshot and the camera of the active 3D view to the comment" />
+                                <CheckBox x:Name="MarkupCheck" Content="Mark up first" Margin="0,0,10,4" VerticalAlignment="Center"
+                                          IsEnabled="{Binding IsChecked, ElementName=AttachViewCheck}" />
+                                <Button x:Name="PostCommentButton" Content="Post comment" Click="PostComment_Click" />
+                            </WrapPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Saved views">
+                <DockPanel Margin="4">
+                    <TextBlock DockPanel.Dock="Top" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,6"
+                               Text="Double-click a view to show it in Revit." />
+                    <TextBlock x:Name="NoViews" DockPanel.Dock="Top" Text="This project has no saved views." Foreground="Gray" Visibility="Collapsed" />
+                    <ListBox x:Name="ViewList" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" MouseDoubleClick="ViewList_DoubleClick">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,4">
+                                    <TextBlock>
+                                        <Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold" />
+                                        <Run Text="{Binding Badge, Mode=OneWay}" Foreground="Gray" />
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding Meta}" Foreground="Gray" FontSize="11" />
+                                    <ContentControl Content="{Binding Snapshot}" ContentTemplate="{StaticResource SnapshotTemplate}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </TabItem>
+        </TabControl>
+
+        <TextBlock x:Name="StatusText" Grid.Row="3" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="Gray" Text="Not signed in." />
+    </Grid>
+</Page>

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The IFC Collab Core (native IfcCollabCore.dll) behind a Task API, plus what the add-in needs
+    that isn't Revit: certificate pinning, DPAPI, IFC GlobalIds, a small JSON reader/writer.
+    netstandard2.0 so the same assembly serves Revit on .NET Framework 4.8, .NET 8 and .NET 10.
+    No package dependencies, so nothing can clash with assemblies Revit already loaded.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>OpenBimViewer.Collab</RootNamespace>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="OpenBimViewer.Collab.Tests" />
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('$(NativeCoreDll)')">
+    <None Include="$(NativeCoreDll)" Link="IfcCollabCore.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Target Name="WarnNativeMissing" BeforeTargets="Build" Condition="!Exists('$(NativeCoreDll)')">
+    <Warning Text="IfcCollabCore.dll not found at '$(NativeCoreDll)'. Run build.ps1 (or build native\IfcCollabCoreBridge with Visual Studio) first; the add-in can't sign in without it." />
+  </Target>
+
+</Project>

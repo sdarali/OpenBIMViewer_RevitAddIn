@@ -1,0 +1,77 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Revit add-in. One project, built once per Revit version (-p:RevitVersion=2026). The
+    version decides the .NET it targets, the Revit API it compiles against (Autodesk's reference
+    assemblies from NuGet, so no Revit install is needed to build), and the REVITxxxx /
+    REVITxxxx_OR_GREATER symbols for version-specific code.
+  -->
+  <PropertyGroup>
+    <TargetFramework Condition="$(RevitVersion) &lt; 2025">net48</TargetFramework>
+    <TargetFramework Condition="$(RevitVersion) &gt;= 2025 And $(RevitVersion) &lt; 2027">net8.0-windows</TargetFramework>
+    <TargetFramework Condition="$(RevitVersion) &gt;= 2027">net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <PlatformTarget>x64</PlatformTarget>
+    <RootNamespace>OpenBimViewer.Revit</RootNamespace>
+    <AssemblyName>OpenBimViewer.Revit</AssemblyName>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>$(MSBuildThisFileDirectory)..\..\build\addin\$(RevitVersion)\$(Configuration)\</OutputPath>
+    <!-- Revit loads the add-in's own copies; nothing of Revit's is copied (Private=false below). -->
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <DefineConstants>$(DefineConstants);REVIT$(RevitVersion)</DefineConstants>
+    <!-- Where the installable files are staged (see StageAddin). -->
+    <DistDir>$(MSBuildThisFileDirectory)..\..\build\dist\$(RevitVersion)\</DistDir>
+  </PropertyGroup>
+
+  <!-- REVIT2025_OR_GREATER etc., from 2021 up to the version being built. -->
+  <PropertyGroup>
+    <DefineConstants Condition="$(RevitVersion) &gt;= 2021">$(DefineConstants);REVIT2021_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="$(RevitVersion) &gt;= 2022">$(DefineConstants);REVIT2022_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="$(RevitVersion) &gt;= 2023">$(DefineConstants);REVIT2023_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="$(RevitVersion) &gt;= 2024">$(DefineConstants);REVIT2024_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="$(RevitVersion) &gt;= 2025">$(DefineConstants);REVIT2025_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="$(RevitVersion) &gt;= 2026">$(DefineConstants);REVIT2026_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="$(RevitVersion) &gt;= 2027">$(DefineConstants);REVIT2027_OR_GREATER</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <!-- Lets the .NET SDK build for .NET Framework 4.8 without Visual Studio's targeting pack. -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OpenBimViewer.Collab\OpenBimViewer.Collab.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="OpenBimViewer.Revit.addin" CopyToOutputDirectory="Never" />
+  </ItemGroup>
+
+  <Target Name="CheckRevitVersion" BeforeTargets="Restore;CollectPackageReferences">
+    <Error Condition="$(RevitVersion) &lt; 2021 Or $(RevitVersion) &gt; 2027" Text="RevitVersion $(RevitVersion) isn't supported; use 2021 to 2027." />
+  </Target>
+
+  <!--
+    Stage what an install needs:
+      build\dist\<year>\OpenBimViewer.Revit.addin
+      build\dist\<year>\OpenBimViewer\  (the add-in, the Core wrapper and IfcCollabCore.dll)
+    install.ps1 copies both into %APPDATA%\Autodesk\Revit\Addins\<year>\.
+  -->
+  <Target Name="StageAddin" AfterTargets="Build">
+    <ItemGroup>
+      <_AddinFiles Include="$(OutDir)OpenBimViewer.*.dll;$(OutDir)OpenBimViewer.*.pdb;$(OutDir)IfcCollabCore.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_AddinFiles)" DestinationFolder="$(DistDir)OpenBimViewer\" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="OpenBimViewer.Revit.addin" DestinationFolder="$(DistDir)" SkipUnchangedFiles="true" />
+    <Warning Condition="!Exists('$(OutDir)IfcCollabCore.dll')" Text="IfcCollabCore.dll wasn't staged. Build native\IfcCollabCoreBridge first (build.ps1 does)." />
+    <Message Importance="high" Text="Open BIM Viewer for Revit $(RevitVersion) ($(TargetFramework)) staged in $(DistDir)" />
+  </Target>
+
+</Project>

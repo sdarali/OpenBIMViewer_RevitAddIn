@@ -1,0 +1,32 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <Version>0.1.0</Version>
+    <Company>IFC Collab</Company>
+    <Product>Open BIM Viewer for Revit</Product>
+
+    <!--
+      The Revit version to build the add-in for. Each one picks its .NET (see
+      src/OpenBimViewer.Revit/OpenBimViewer.Revit.csproj):
+        2021–2024  .NET Framework 4.8
+        2025–2026  .NET 8
+        2027       .NET 10
+      dotnet build -p:RevitVersion=2024, or build.ps1 for all of them.
+    -->
+    <RevitVersion Condition="'$(RevitVersion)' == ''">2026</RevitVersion>
+
+    <!-- IfcCollabCore.dll from native/IfcCollabCoreBridge (built by build.ps1 or Visual Studio's MSBuild). -->
+    <NativeConfiguration Condition="'$(NativeConfiguration)' == ''">Release</NativeConfiguration>
+    <NativeCoreDll>$(MSBuildThisFileDirectory)build\native\$(NativeConfiguration)\IfcCollabCore.dll</NativeCoreDll>
+  </PropertyGroup>
+
+  <!--
+    Each Revit version restores different packages, so the add-in keeps one obj folder per
+    version, outside the project folder (inside it, the other versions' generated files would be
+    picked up as sources).
+  -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'OpenBimViewer.Revit'">
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)build\obj\$(MSBuildProjectName)\$(RevitVersion)\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>
