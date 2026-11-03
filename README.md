@@ -50,6 +50,7 @@ src/OpenBimViewer.Revit/         The add-in: ribbon, dockable WPF panel, dialogs
 tests/OpenBimViewer.Collab.Tests/ The managed client and the native Core together, against a scripted
                                  server. Runs on .NET 10 and .NET Framework 4.8.
 build.ps1, install.ps1           Build everything / install for the current Windows user.
+build.cmd, install.cmd           The same two scripts for the command console (cmd.exe).
 ```
 
 ### How the pieces fit
@@ -93,6 +94,16 @@ Requirements:
 dotnet build src\OpenBimViewer.Revit -p:RevitVersion=2025    # the add-in alone (native DLL already built)
 ```
 
+From the Windows command console (`cmd.exe`), use `build.cmd`, which takes the same options:
+
+```bat
+build.cmd                              &rem native DLL, tests, and Revit 2021-2027
+build.cmd 2026                         &rem just Revit 2026
+build.cmd 2024 2027 /skiptests
+build.cmd /configuration Debug /collabcoredir D:\src\IFCCollabCore
+build.cmd /skipnative                  &rem IfcCollabCore.dll already built
+```
+
 Output: `build\dist\<year>\OpenBimViewer.Revit.addin` and `build\dist\<year>\OpenBimViewer\`.
 
 The native project uses Visual Studio 2026's toolset (v145); for Visual Studio 2022 build it with
@@ -104,6 +115,15 @@ The native project uses Visual Studio 2026's toolset (v145); for Visual Studio 2
 .\install.ps1                  # every built version whose Revit is installed
 .\install.ps1 -Versions 2026
 .\install.ps1 -Uninstall
+```
+
+From the Windows command console (`cmd.exe`), use `install.cmd` instead; it does the same thing:
+
+```bat
+install.cmd                    &rem every built version whose Revit is installed
+install.cmd 2026
+install.cmd 2024 2027
+install.cmd /uninstall
 ```
 
 This copies the manifest and the `OpenBimViewer` folder to
